@@ -17,8 +17,8 @@ class Question(Base):
         nullable=False
     )
 
-    question_number: Mapped[int] = mapped_column(
-        Integer,
+    question_number: Mapped[str] = mapped_column(
+        String(20),
         nullable=False
     )
 
@@ -32,12 +32,17 @@ class Question(Base):
         nullable=False
     )
 
-    rubric_items: Mapped[str] = mapped_column(
+    rubric: Mapped[str] = mapped_column(
         Text,
         nullable=False
     )
 
     model_answer: Mapped[str] = mapped_column(
         Text,
+        nullable=False
+    )
+
+    is_optional: Mapped[bool] = mapped_column(
+        default=False,
         nullable=False
     )
