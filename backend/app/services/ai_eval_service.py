@@ -262,7 +262,7 @@ def generate_ai_suggestion(
     # Prompt
     # ---------------------------------------------------------
     prompt = f"""
-You are the AI evaluation component of ExamIQ.
+You are the AI evaluation component of EvalAI.
 
 Core principle:
 AI assists. Humans decide.

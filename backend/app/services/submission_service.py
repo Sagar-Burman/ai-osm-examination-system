@@ -91,9 +91,18 @@ def check_submission(db: Session, sheet_id: int, examiner_id: int):
     marks = db.query(Mark).filter(Mark.sheet_id == sheet_id).all()
     total = sum(mark.final_marks for mark in marks)
 
+    ready = len(unchecked) == 0
+    message = None
+    if not ready:
+        first_question = unchecked[0]["question_number"]
+        q_label = str(first_question) if str(first_question).startswith("Q") else f"Q{first_question}"
+        message = f"Potential unchecked question detected. Please review {q_label}."
+
     return {
         "sheet_id": sheet_id,
-        "ready": len(unchecked) == 0,
+        "ready": ready,
+        "can_submit": ready,
+        "message": message,
         "questions": states,
         "unchecked_questions": [item["question_number"] for item in unchecked],
         "total_marks": total,
@@ -107,6 +116,7 @@ def submit_sheet(db: Session, sheet_id: int, examiner_id: int):
     unchecked = [item for item in states if item["state"] not in VALID_EVAL_STATUSES]
     if unchecked:
         first_question = unchecked[0]["question_number"]
+        q_label = str(first_question) if str(first_question).startswith("Q") else f"Q{first_question}"
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail={
@@ -114,7 +124,7 @@ def submit_sheet(db: Session, sheet_id: int, examiner_id: int):
                     "code": "UNCHECKED_QUESTION",
                     "message": (
                         "Potential unchecked question detected. "
-                        f"Please review Q{first_question}."
+                        f"Please review {q_label}."
                     ),
                     "questions": [item["question_number"] for item in unchecked],
                 }

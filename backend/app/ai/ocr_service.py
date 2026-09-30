@@ -154,7 +154,7 @@ def call_gemini_ocr(image_bytes: bytes) -> dict:
     )
 
     prompt = """
-You are the OCR and vision component of ExamIQ.
+You are the OCR and vision component of EvalAI.
 
 Transcribe the answer-sheet page.
 
