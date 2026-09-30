@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
 from app.core.deps import require_roles
@@ -27,6 +28,8 @@ def examiner_queue(
     current_user: dict = Depends(require_roles("examiner")),
     db: Session = Depends(get_db)
 ):
+
+    
     examiner_id = int(current_user["sub"])
 
     rows = (
@@ -36,6 +39,8 @@ def examiner_queue(
         .filter(Assignment.examiner_id == examiner_id)
         .all()
     )
+
+    
 
     return [
         {
@@ -48,3 +53,40 @@ def examiner_queue(
         }
         for assignment, sheet, exam in rows
     ]
+
+@router.get("/sheets/{sheet_id}/file")
+def examiner_sheet_file(
+    sheet_id: int,
+    current_user: dict = Depends(require_roles("examiner")),
+    db: Session = Depends(get_db)
+):
+    examiner_id = int(current_user["sub"])
+
+    row = (
+        db.query(Assignment, Sheet)
+        .join(Sheet, Assignment.sheet_id == Sheet.id)
+        .filter(
+            Assignment.sheet_id == sheet_id,
+            Assignment.examiner_id == examiner_id
+        )
+        .first()
+    )
+
+    if row is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Sheet not assigned to this examiner"
+        )
+
+    _, sheet = row
+
+    if not sheet.file_path:
+        raise HTTPException(
+            status_code=404,
+            detail="Sheet file not found"
+        )
+
+    return FileResponse(
+        path=sheet.file_path,
+        media_type="application/pdf"
+    )

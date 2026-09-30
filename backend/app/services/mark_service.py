@@ -4,6 +4,7 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.models.assignment import Assignment
+from app.models.answer_segments import AnswerSegment
 from app.models.exam import Exam
 from app.models.mark import Mark
 from app.models.question import Question
@@ -116,10 +117,29 @@ def get_marks(
         )
     }
 
+    segments = (
+        db.query(AnswerSegment)
+        .filter(AnswerSegment.sheet_id == sheet_id)
+        .all()
+    )
+    segments_by_question = {}
+    for segment in segments:
+        segments_by_question.setdefault(segment.question_id, []).append(segment)
+
     question_data = []
 
     for question in questions:
         mark = existing_marks.get(question.id)
+
+        if mark is not None:
+            eval_status = mark.eval_status
+        else:
+            q_segs = segments_by_question.get(question.id, [])
+            has_answer = any(
+                not seg.is_blank_detected and bool((seg.text or "").strip())
+                for seg in q_segs
+            )
+            eval_status = "ANSWER_DETECTED_UNEVALUATED" if has_answer else "NOT_ANSWERED"
 
         question_data.append({
             "question_id": question.id,
@@ -130,11 +150,7 @@ def get_marks(
                 if mark is not None
                 else None
             ),
-            "eval_status": (
-                mark.eval_status
-                if mark is not None
-                else None
-            ),
+            "eval_status": eval_status,
             "comment": (
                 mark.comment
                 if mark is not None
@@ -213,7 +229,16 @@ def save_mark(
         "NONE"
     }
 
-    if ai_action not in allowed_actions:
+    normalized_action = (ai_action or "NONE").strip().upper()
+    if normalized_action == "ACCEPT":
+        ai_action = "ACCEPTED"
+    elif normalized_action == "EDIT":
+        ai_action = "EDITED"
+    elif normalized_action == "IGNORE":
+        ai_action = "IGNORED"
+    elif normalized_action in allowed_actions:
+        ai_action = normalized_action
+    else:
         raise HTTPException(
             status_code=422,
             detail="Invalid AI action"
